@@ -4,7 +4,7 @@ module ImageProcessor
 
     include("transforms/Transformations.jl")
     using .Transformations
-    export min_max, standardize, threshold, adaptive_threshold, box_blur, pad,euclidean_threshold
+    export min_max, standardize, threshold, adaptive_threshold, box_blur, pad,euclidean_threshold, match_template
 
     include("measures/Measures.jl")
     using .Measures 

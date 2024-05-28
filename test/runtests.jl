@@ -16,4 +16,14 @@ import Images:Gray
     @test convert(Float32, mse(gray, gray) ) ≈ 0
     @test convert(Float32, mle(gray, gray) ) ≈ 0
     # Write your tests here.
+
+    large_img = load("test//settings.jpg")
+    patch_img = load("test//patch_img.png") 
+
+    large_img_gray = Gray.(large_img)
+    patch_gray     = Gray.(patch_img)
+    res = match_template(large_img_gray, patch_gray)
+    @test length(res) == 2
+
 end
+
