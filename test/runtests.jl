@@ -1,4 +1,4 @@
-using ImageProcessor
+import ImageProcessor: standardize,mae, mse,mle,match_template
 using Test
 using FileIO
 using Statistics

@@ -107,24 +107,123 @@ function euclidean_threshold(img, thresh_val, ref_color)
     return colorview( Gray, map(x -> x > thresh_val ? 1.0 : 0.0, distances) )
 end 
 
+
+# Function to match template (unchanged)
 function match_template(original_image, patch_image)
     patch_height, patch_width = size(patch_image)
     original_height, original_width = size(original_image)
 
-    result=  fill(Inf, (original_height - patch_height) , (original_width - patch_width) )
+    result = fill(Inf, (original_height - patch_height), (original_width - patch_width))
 
-    # Loop efficiently over the array in column-major order
     for ind in CartesianIndices(result)
-        i, j = ind.I  # Extract row and column indices
-        img_view = @views original_image[i: i+patch_height - 1, j:j+patch_width - 1]
-        # error = imp.mse(img_view, patch_image)
-        error = img_dist.mse(img_view, patch_image)
-        result[i, j] = error 
-    end 
-    
+        i, j = ind.I
+        img_view = @view original_image[i:i+patch_height-1, j:j+patch_width-1]
+        error = img_dist.rmse(img_view, patch_image)
+        result[i, j] = error
+    end
+
     min_val = minimum(result)
     top_left = findfirst(x -> x == min_val, result)
     bottom_right = (top_left[1] + patch_height - 1, top_left[2] + patch_width - 1)
 
-    return top_left, bottom_right
+    matched_patch = original_image[top_left[1]:bottom_right[1], top_left[2]:bottom_right[2]]
+    return matched_patch
+end
+
+function wcss(cluster, centroid)
+    total = 0
+    for i in 1:length(cluster)
+        total = total + ((cluster[i] - centroid) ^ 2)
+    end 
+    return total 
 end 
+
+
+function kmeans(img, k, iterate_for=30, threshold=1e-4)
+    centroids = [convert(Float32, img[rand(1:size(img, 1)), rand(1:size(img, 2))] ) for _ in 1:k]
+    println("Centroid Being Initialized is : ",centroids)
+    cluster_idx_mat = Matrix{Int32}(undef, size(img, 1), size(img, 2))
+
+    # Initialize clusters as arrays to store pixel values
+    clusters = [Array{Float32}(undef, 0) for _ in 1:k]
+    iterate = 1
+    prev_wcss = Inf
+    while iterate <= iterate_for
+        clusters=  [Array{Float32}(undef, 0) for _ in 1:k]
+        for i in 1:size(img, 1)
+            for j in 1:size(img, 2)
+                dists = []
+                for cluster in 1: k
+                    dist = euclidean( convert(Float32, img[i, j] ),  centroids[cluster])
+                    push!(dists, dist)
+                end 
+                cluster_idx = argmin(dists)
+                cluster_idx_mat[i, j] = cluster_idx
+                push!(clusters[cluster_idx], convert(Float32, img[i, j]))
+            end
+        end
+        wcss_scores = Float32[]
+        for i in 1:k
+            if length(clusters[i]) > 0
+                push!( wcss_scores, wcss(clusters[i], centroids[i]) )
+                centroids[i] = mean(clusters[i])
+            else 
+                centroids[i] = img[rand(1:size(img, 1)), rand(1:size(img, 2))]
+                push!(wcss_scores, 0.0)
+            end 
+        end
+        change_in_wcss = abs(prev_wcss - sum(wcss_scores))
+        if change_in_wcss < threshold
+            println("Convergence reached at iteration $iterate")
+            break
+        end
+
+        prev_wcss = sum(wcss_scores)
+        iterate += 1
+    end 
+    return cluster_idx_mat, clusters 
+end
+
+
+# implement KNN and KMeans
+# Example usage
+
+# function main()
+#     large_img = load("test//settings_large.png")
+#     # patch_img = load("test//image.png") 
+
+#     large_img_gray = Gray.(large_img)
+#     # patch_gray     = Gray.(patch_img)
+
+#     # @time matched_patch = match_template(large_img_gray, patch_gray)
+    
+
+# large_img = load("c:\\Users\\dhari\\projects\\DLProjects\\full_img.png")
+# # patch_img = load("test//image.png") 
+
+# large_img_gray = Gray.(large_img)
+# # patch_gray     = Gray.(patch_img)
+
+# # @time matched_patch = match_template(large_img_gray, patch_gray)
+# coords, out = kmeans(large_img_gray, 2, 10, 1e-4)
+
+
+
+
+
+# Gray.( min_max(coords) )
+
+
+# sub_img = Matrix{Float32}(undef, size(large_img_gray, 1), size(large_img_gray, 2))
+
+# for i in 1:size(coords, 1)
+#     for j in 1:size(coords, 2)
+#         if coords[i, j] == 1.0
+#             sub_img[i, j] = convert(Float32, large_img_gray[i, j])
+#         else
+#             sub_img[i, j] = 0
+#         end 
+#     end 
+# end
+
+# end 
